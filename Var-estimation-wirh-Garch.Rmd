@@ -29,17 +29,41 @@ Dow_Jones <- getSymbols("^DJI",src = "yahoo",from = "2019-01-01", to = "2023-01-
 Tmsc <- getSymbols("TSM",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE)
 Pound <- getSymbols("GBPUSD=X",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE)
 Silver <- getSymbols("SI=F",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE)
-BNB<- getSymbols("BNB-USD",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE)
+BNB<- na_locf(getSymbols("BNB-USD",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE))
 # Extract the adjusted closing prices for each symbol
-dji_adjclose <- Ad(Dow_Jones)
-tsm_adjclose <- Ad(Tmsc)
-gbpusd_adjclose <- Ad(Pound)
-si_adjclose <- Ad(Silver)
-bnbusd_adjclose <- Ad(BNB)
 
-# Merge the data into a single xts object
-portfolio_xts <- merge(dji_adjclose, tsm_adjclose, gbpusd_adjclose, si_adjclose, bnbusd_adjclose)
-portfolio_xts <- na.locf(portfolio_xts)
+
+
+```
+
+```{r}
+Dow_Jones$r <- diff.xts(log(na_locf(Dow_Jones$DJI.Adjusted)))
+Tmsc$r <- diff.xts(log(na_locf(Tmsc$TSM.Adjusted)))
+Pound$r <- diff.xts(log(na_locf(Pound$GBPUSD.X.Adjusted)))
+Silver$r <- diff.xts(log(na_locf(Silver$SI.F.Adjusted)))
+BNB$r <- diff.xts(log(na_locf(BNB$BNB.USD.Adjusted)))
+print(Tmsc$r)
+```
+
+
+
+
+
+```{r}
+
+# Assuming you have xts time series objects for each asset (Dow_Jones, Tmsc, Pound, Silver, BNB)
+
+# Calculate the combined returns of all assets
+combined_returns <- Dow_Jones$r + Tmsc$r + Pound$r + Silver$r + BNB$r
+
+# Calculate the portfolio returns with equal weights
+weight <- 0.2
+portfolio_returns <- combined_returns * weight
+
+# Convert the xts object to a data frame
+portfolio_df <- data.frame(date = index(combined_returns), portfolio_returns = coredata(portfolio_returns))
+# Print the portfolio data frame
+print(portfolio_df)
 
 
 
@@ -47,71 +71,17 @@ portfolio_xts <- na.locf(portfolio_xts)
 
 
 
-```{r}
-# Merge the data into a single xts object
-portfolio_xts <- merge(dji_adjclose, tsm_adjclose, gbpusd_adjclose, si_adjclose, bnbusd_adjclose)
-portfolio_xts <- na_locf(portfolio_xts)
-# Convert to data frame
-portfolio_frame <- data.frame(Date=index(portfolio_xts),coredata(portfolio_xts))
-colnames(portfolio_frame) <- c("Date","DJI", "TSM", "GBPUSD", "Silver", "BNB")
-
-print(portfolio_frame)
-```
-
-```{r}
-# Calculate daily returns
-daily_returns_xts <- Return.calculate(portfolio_xts, method = "discrete")
-# Remove the first row which contains NA values
-daily_returns_xts <- daily_returns_xts[-1, ]
-# View the result
-print(daily_returns_xts)
-
-
-```
 
 
 
-```{r}
-# Number of assets
-num_assets <- ncol(daily_returns_xts)
-
-# Equal weights for each asset
-weights <- rep(1/num_assets, num_assets)
-
-# Calculate portfolio returns
-portfolio_returns_xts <- xts(rowSums(daily_returns_xts * weights), order.by = index(daily_returns_xts))
-
-
-
-
-```
-
-```{r}
-
-
-# Convert xts object to data frame with Date column
-portfolio_returns_df <- data.frame(Date = index(portfolio_returns_xts),
-                                   Portfolio_Return = coredata(portfolio_returns_xts))
-
-# View the data frame to ensure it is correct
-print(portfolio_returns_df)
-
-
-
-
-
-
-
-
-```
 
 
 ```{r}
 
 
-# Assuming 'portfolio_returns_df' is your data frame containing Date and Daily_Return columns
+
 # Create a scatter plot
-ggplot(portfolio_returns_df, aes(x = Date, y = portfolio_returns_df$Portfolio_Return)) +
+ggplot(portfolio_xts, aes(x =portfolio_df$date , y = portfolio_df$r )) +
   geom_point() +
   labs(title = "Portfolio Daily Returns",
        x = "Date",
@@ -123,7 +93,7 @@ ggplot(portfolio_returns_df, aes(x = Date, y = portfolio_returns_df$Portfolio_Re
 
 ```{r}
 # Distribution plot
-distribution_plot <- ggplot(portfolio_returns_df, aes(x = Portfolio_Return)) +
+distribution_plot <- ggplot(portfolio_df, aes(x = portfolio_df$r)) +
   geom_histogram(binwidth = 0.01, fill = "skyblue", color = "black") +
   labs(title = "Distribution of Portfolio Returns",
        x = "Portfolio Return",
@@ -134,12 +104,82 @@ print(distribution_plot)
 
 
 ```
-
+Pot of returns
 ```{r}
-
-adf.test(portfolio_returns_df$Portfolio_Return)
+plot(portfolio_df$date,portfolio_df$r,type = "l",col="red",lwd=1,main="Return of Portfolio")
 ```
 
 ```{r}
+
+adf.test(portfolio_df$r[-1])
+```
+
+
+Plot of ACF for returns 
+```{r}
+acf(portfolio_df$r,lag.max = 36, na.action = na.pass,col="darkblue",lwd=7,main="ACF of Portfolio returns")
+
+acf(portfolio_df$r, lag.max = 36, na.action = na.pass, ylim = c(-0.2, 0.2),
+    col = "darkblue", lwd = 7, main = "ACF of Portfolio returns")
+```
+Plot of ACF for **squared returns**.
+```{r}
+acf(portfolio_df$r^2,lag.max = 100,na.action = na.pass,col="darkblue",lwd=7,main="ACF of Portfolio squared returns")
+acf(portfolio_df$r^2,lag.max = 100,na.action = na.pass,
+    ylim= c(0, 0.5),col="darkblue",lwd=7,main="CF of Portfolio squared returns")
+
+```
+Testing for ARCH effects.
+```{r}
+ArchTest(portfolio_df$r,lags = 5)
+durbinWatsonTest(lm(portfolio_df$r^2 ~ 1),max.lag = 5)
+
+
+```
+
+Normality test
+```{r}
+basicStats((portfolio_df$r))
+hist(portfolio_df$r, prob=T, breaks = 40)
+curve(dnorm(x, mean(portfolio_df$r, na.rm= T),
+            sd=sd(portfolio_df$r, na.rm = T)),
+      col="darkblue",lwd=2, add=TRUE)
+
+jarque.bera.test(na.omit(portfolio_df$r))
+durbinWatsonTest(lm(portfolio_df$r ~ 1), max.lag = 5)
+
+
+```
+
+Standardization of returns.
+
+```{r}
+portfolio_df$stan <-(portfolio_df$r-mean(portfolio_df$r, na.rm=T))/ sd(portfolio_df$r, na.rm = T)
+
+tail(portfolio_df$stan)
+
+```
+Histogram of standart return
+```{r}
+hist(portfolio_df$stan, prob=T, breaks = 40)
+curve(dnorm(x, mean(portfolio_df$stan, na.rm= T),
+            sd=sd(portfolio_df$stan, na.rm = T)),
+      col="darkblue",lwd=2, add=TRUE)
+
+```
+Descriptive statistics of standardized returns .
+```{r}
+basicStats(portfolio_df$stan)
+
+```
+1% empirical quantile
+
+```{r}
+quantile(portfolio_df$stan,0.01, na.rm=T)
+
+```
+For comparison: 1% quantile of standard normal distribution
+```{r}
+qnorm(0.01,0,1)
 
 ```
