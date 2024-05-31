@@ -18,7 +18,7 @@ library(xts)
 library(quantmod)
 library(imputeTS)
 library(tseries)
-
+library(rugarch)
 ```
 
 # Import the data
@@ -34,15 +34,16 @@ BNB<- na_locf(getSymbols("BNB-USD",src = "yahoo",from = "2019-01-01", to = "2023
 
 
 
+
 ```
 
 ```{r}
-Dow_Jones$r <- diff.xts(log(na_locf(Dow_Jones$DJI.Adjusted)))
-Tmsc$r <- diff.xts(log(na_locf(Tmsc$TSM.Adjusted)))
+Dow_Jones$r <- diff.xts(log(na_locf(Dow_Jones$`DJI.Adjusted`)))
+Tmsc$r <- diff.xts(log(na_locf(Tmsc$`TSM.Adjusted`)))
 Pound$r <- diff.xts(log(na_locf(Pound$GBPUSD.X.Adjusted)))
 Silver$r <- diff.xts(log(na_locf(Silver$SI.F.Adjusted)))
 BNB$r <- diff.xts(log(na_locf(BNB$BNB.USD.Adjusted)))
-print(Tmsc$r)
+print(Pound$r)
 ```
 
 
@@ -62,6 +63,7 @@ portfolio_returns <- combined_returns * weight
 
 # Convert the xts object to a data frame
 portfolio_df <- data.frame(date = index(combined_returns), portfolio_returns = coredata(portfolio_returns))
+portfolio_df <- na.omit(portfolio_df)
 # Print the portfolio data frame
 print(portfolio_df)
 
@@ -181,5 +183,77 @@ quantile(portfolio_df$stan,0.01, na.rm=T)
 For comparison: 1% quantile of standard normal distribution
 ```{r}
 qnorm(0.01,0,1)
+
+```
+Estimating the GARCH(1,1) model.
+
+```{r}
+spec <- ugarchspec(variance.model = list(model="sGARCH",garchOrder= c(1,1)),mean.model = list(armaOrder = c(0,0), include.mean= T),distribution.model = "norm")
+
+portfolio_df.garch11 <- ugarchfit(spec = spec, data = na.omit(portfolio_df$r))
+
+```
+
+```{r}
+plot(portfolio_df.garch11, which=10)
+plot(portfolio_df.garch11, which=11)
+```
+# VaR in the IN-SAMPLE period
+```{r}
+str(portfolio_df.garch11)
+head(portfolio_df.garch11@fit$sigma)
+
+```
+Calculating value-at-risk (VaR).
+```{r}
+portfolio_df$var <- q01*portfolio_df.garch11@fit$sigma
+tail(portfolio_df)
+
+```
+Plot of returns vs value-at-risk.
+
+```{r}
+plot(portfolio_df$date,portfolio_df$r,  col="red", 
+     lwd=1,type="l", ylim= c(-0.1, 0.1))
+abline(h = 0, lty = 2)
+lines(portfolio_df$date,portfolio_df$var,col="green", type="l")
+
+```
+
+In how many days losses were higher than the assumed value-at-risk?
+
+```{r}
+sum(portfolio_df$r < portfolio_df$var)/ length(portfolio_df$var)
+
+```
+
+# VaR in the OUT-OF-SAMPLE period
+Plot of conditional standard deviation and its on-day ahead prediction.
+```{r}
+plot(ugarchforecast(portfolio_df.garch11, na.ahead=1), which=3)
+
+```
+Plot of conditional standard deviation forecasts in the long run.
+```{r}
+plot(ugarchforecast(portfolio_df.garch11, n.ahead = 200), which=3)
+
+```
+
+We can combine them with the in-sample estimation of conditional standard deviation
+
+```{r}
+sigma.forecast.longrun <- ugarchforecast(portfolio_df.garch11, n.ahead = 500)
+unconditional_sigma <- 
+  sqrt(
+    portfolio_df.garch11@model$pars["omega", 1] / 
+      (1 - 
+         portfolio_df.garch11@model$pars["alpha1", 1] -
+         portfolio_df.garch11@model$pars["beta1", 1]))
+plot(
+  c(as.numeric(portfolio_df.garch11@fit$sigma),
+    as.numeric(sigma.forecast.longrun@forecast$sigmaFor)),
+  type = "l",
+  ylab = "sigma")
+abline(h = unconditional_sigma, col = "red")
 
 ```
