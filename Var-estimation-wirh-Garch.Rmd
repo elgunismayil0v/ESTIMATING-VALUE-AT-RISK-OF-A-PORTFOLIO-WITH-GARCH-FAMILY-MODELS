@@ -19,6 +19,9 @@ library(quantmod)
 library(imputeTS)
 library(tseries)
 library(rugarch)
+library(FinTS)
+library(car)
+library(fBasics)
 ```
 
 # Import the data
@@ -32,17 +35,18 @@ Silver <- getSymbols("SI=F",src = "yahoo",from = "2019-01-01", to = "2023-01-01"
 BNB<- na_locf(getSymbols("BNB-USD",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE))
 # Extract the adjusted closing prices for each symbol
 
-
-
+Pound$adjusted <- na_locf(Pound$`GBPUSD=X.Adjusted`)
+Silver$adjusted <- na_locf(Silver$`SI=F.Adjusted`)
+BNB$adjusted <- na_locf(BNB$`BNB-USD.Adjusted`)
 
 ```
 
 ```{r}
 Dow_Jones$r <- diff.xts(log(na_locf(Dow_Jones$`DJI.Adjusted`)))
 Tmsc$r <- diff.xts(log(na_locf(Tmsc$`TSM.Adjusted`)))
-Pound$r <- diff.xts(log(na_locf(Pound$GBPUSD.X.Adjusted)))
-Silver$r <- diff.xts(log(na_locf(Silver$SI.F.Adjusted)))
-BNB$r <- diff.xts(log(na_locf(BNB$BNB.USD.Adjusted)))
+Pound$r <- diff.xts(log(Pound$adjusted))
+Silver$r <- diff.xts(log(Silver$adjusted))
+BNB$r <- diff.xts(log(BNB$adjusted))
 print(Pound$r)
 ```
 
@@ -83,7 +87,7 @@ print(portfolio_df)
 
 
 # Create a scatter plot
-ggplot(portfolio_xts, aes(x =portfolio_df$date , y = portfolio_df$r )) +
+ggplot(portfolio_df, aes(x =portfolio_df$date , y = portfolio_df$r )) +
   geom_point() +
   labs(title = "Portfolio Daily Returns",
        x = "Date",
@@ -257,3 +261,14 @@ plot(
 abline(h = unconditional_sigma, col = "red")
 
 ```
+
+Yet a better idea is to annualize all of these values. 
+```{r}
+plot(
+  c(as.numeric(portfolio_df.garch11@fit$sigma * sqrt(252)),
+    as.numeric(sigma.forecast.longrun@forecast$sigmaFor * sqrt(252))),
+  type = "l",
+  ylab = "sigma annualized")
+abline(h = unconditional_sigma * sqrt(252), col = "red")
+```
+
