@@ -90,49 +90,22 @@ print(portfolio_df)
 ```
 
 
-
-
-
-
-
-
+ log-returns plot:
 ```{r}
-
-
-
-# Create a scatter plot
-ggplot(portfolio_df, aes(x =portfolio_df$date , y = portfolio_df$r )) +
-  geom_point() +
-  labs(title = "Portfolio Daily Returns",
-       x = "Date",
-       y = "Daily Return")
-
-
-
+plot(portfolio_df$r, 
+     col = "red",
+     major.ticks = "years", 
+     grid.ticks.on = "years",
+     main = "Log-returns of Portfolio")
 ```
 
-```{r}
-# Distribution plot
-distribution_plot <- ggplot(portfolio_df, aes(x = portfolio_df$r)) +
-  geom_histogram(binwidth = 0.01, fill = "skyblue", color = "black") +
-  labs(title = "Distribution of Portfolio Returns",
-       x = "Portfolio Return",
-       y = "Frequency")
-
-# Show the distribution plot
-print(distribution_plot)
 
 
-```
 Pot of returns
 ```{r}
 plot(portfolio_df$date,portfolio_df$r,type = "l",col="red",lwd=1,main="Return of Portfolio")
 ```
 
-```{r}
-
-adf.test(portfolio_df$r[-1])
-```
 
 
 Plot of ACF for returns 
@@ -142,6 +115,7 @@ acf(portfolio_df$r,lag.max = 36, na.action = na.pass,col="darkblue",lwd=7,main="
 acf(portfolio_df$r, lag.max = 36, na.action = na.pass, ylim = c(-0.2, 0.2),
     col = "darkblue", lwd = 7, main = "ACF of Portfolio returns")
 ```
+
 Plot of ACF for **squared returns**.
 ```{r}
 acf(portfolio_df$r^2,lag.max = 100,na.action = na.pass,col="darkblue",lwd=7,main="ACF of Portfolio squared returns")
@@ -165,12 +139,33 @@ curve(dnorm(x, mean(portfolio_df$r, na.rm= T),
             sd=sd(portfolio_df$r, na.rm = T)),
       col="darkblue",lwd=2, add=TRUE)
 
-jarque.bera.test(na.omit(portfolio_df$r))
-durbinWatsonTest(lm(portfolio_df$r ~ 1), max.lag = 5)
+
 
 
 ```
+Leptokutosis
+```{r}
+tibble(r = as.numeric(portfolio_df$r)) %>%
+  ggplot(aes(r)) +
+  geom_histogram(aes(y =..density..),
+                 colour = "black", 
+                 fill = "pink") +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(portfolio_df$r), 
+                            sd = sd(portfolio_df$r))) +
+  theme_bw() + 
+  labs(
+    title = "Density of the portfolio log-returns", 
+    y = "", x = "",
+    caption = "source: own calculations"
+  )
+```
 
+```{r}
+jarque.bera.test(na.omit(portfolio_df$r))
+durbinWatsonTest(lm(portfolio_df$r ~ 1), max.lag = 5)
+
+```
 Standardization of returns.
 
 ```{r}
