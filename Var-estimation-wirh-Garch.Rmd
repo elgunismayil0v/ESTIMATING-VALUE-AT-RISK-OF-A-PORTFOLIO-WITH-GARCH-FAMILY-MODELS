@@ -32,66 +32,52 @@ Dow_Jones <- getSymbols("^DJI",src = "yahoo",from = "2019-01-01", to = "2024-06-
 Tmsc <- getSymbols("TSM",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
 Pound <- getSymbols("GBPUSD=X",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
 Silver <- getSymbols("SI=F",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
-BNB<- na_locf(getSymbols("BNB-USD",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE))
+BNB<- getSymbols("BNB-USD",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
 # Extract the adjusted closing prices for each symbol
 
-Pound$adjusted <- na_locf(Pound$`GBPUSD=X.Adjusted`)
-Silver$adjusted <- na_locf(Silver$`SI=F.Adjusted`)
-BNB$adjusted <- na_locf(BNB$`BNB-USD.Adjusted`)
-
 ```
-
-```{r}
-Dow_Jones$r <- diff.xts(log(na_locf(Dow_Jones$`DJI.Adjusted`)))
-Tmsc$r <- diff.xts(log(na_locf(Tmsc$`TSM.Adjusted`)))
+#Handling with NA values use na_locf
+```{r data cleaning}
+Dow_Jones$adjusted <- na_locf(Dow_Jones$DJI.Adjusted)
+Tmsc$adjusted <- na_locf(Tmsc$TSM.Adjusted)
+Pound$adjusted <- na_locf(Pound$GBPUSD.X.Adjusted)
+Silver$adjusted <- na_locf(Silver$SI.F.Adjusted)
+BNB$adjusted <- na_locf(BNB$BNB.USD.Adjusted)
+```
+#Log return of ecah asset
+```{r log_return}
+Dow_Jones$r <- diff.xts(log(Dow_Jones$adjusted))
+Tmsc$r <- diff.xts(log(Tmsc$adjusted))
 Pound$r <- diff.xts(log(Pound$adjusted))
 Silver$r <- diff.xts(log(Silver$adjusted))
 BNB$r <- diff.xts(log(BNB$adjusted))
-print(Pound$r)
 ```
 
-
-
-
-
-```{r}
-
-# Assuming you have xts time series objects for each asset (Dow_Jones, Tmsc, Pound, Silver, BNB)
-
+#Portfolio construction
+```{r Portfolio construction}
 # Calculate the combined returns of all assets
 combined_returns <- Dow_Jones$r + Tmsc$r + Pound$r + Silver$r + BNB$r
-
 # Calculate the portfolio returns with equal weights
 weight <- 0.2
 portfolio_returns <- combined_returns * weight
-
 # Convert the xts object to a data frame
 portfolio_df1 <- data.frame(date = index(combined_returns), portfolio_returns = coredata(portfolio_returns))
 portfolio_df1 <- na.omit(portfolio_df1)
-
-
 # Ensure the date column is in Date format
 portfolio_df1$date <- as.Date(portfolio_df1$date)
 
 # Removing observations after `2023-01-01`
-
-# Splitting the data into two parts: until 2023 and from 2023 to 2024
 portfolio_df <- portfolio_df1 %>%
   filter(date <= as.Date("2023-01-01"))
-
-
-
 
 # Print the portfolio data frame
 print(portfolio_df)
 
-
-
 ```
 
 
- log-returns plot:
-```{r}
+#Log-returns plot
+```{r log-return plot}
 plot(portfolio_df$r, 
      col = "red",
      major.ticks = "years", 
@@ -99,52 +85,29 @@ plot(portfolio_df$r,
      main = "Log-returns of Portfolio")
 ```
 
-
-
-Pot of returns
-```{r}
-plot(portfolio_df$date,portfolio_df$r,type = "l",col="red",lwd=1,main="Return of Portfolio")
-```
-
-
-
-Plot of ACF for returns 
-```{r}
+#Plot of ACF for returns 
+```{r ACF_return }
 acf(portfolio_df$r,lag.max = 36, na.action = na.pass,col="darkblue",lwd=7,main="ACF of Portfolio returns")
 
 acf(portfolio_df$r, lag.max = 36, na.action = na.pass, ylim = c(-0.2, 0.2),
     col = "darkblue", lwd = 7, main = "ACF of Portfolio returns")
 ```
 
-Plot of ACF for **squared returns**.
-```{r}
+#Plot of ACF for **squared returns**.
+```{r ACF_return^2}
 acf(portfolio_df$r^2,lag.max = 100,na.action = na.pass,col="darkblue",lwd=7,main="ACF of Portfolio squared returns")
 acf(portfolio_df$r^2,lag.max = 100,na.action = na.pass,
     ylim= c(0, 0.5),col="darkblue",lwd=7,main="CF of Portfolio squared returns")
 
 ```
-Testing for ARCH effects.
-```{r}
-ArchTest(portfolio_df$r,lags = 5)
-durbinWatsonTest(lm(portfolio_df$r^2 ~ 1),max.lag = 5)
-
-
-```
-
-Normality test
-```{r}
+Lag 1,2,3,4,6,8 seems significant.
+#Normality test
+```{r normality test}
 basicStats((portfolio_df$r))
-hist(portfolio_df$r, prob=T, breaks = 40)
-curve(dnorm(x, mean(portfolio_df$r, na.rm= T),
-            sd=sd(portfolio_df$r, na.rm = T)),
-      col="darkblue",lwd=2, add=TRUE)
-
-
-
-
 ```
-Leptokutosis
-```{r}
+Skewness is negative and we also observe strong excess kurtosis.
+
+```{r histogram for leptekutosis}
 tibble(r = as.numeric(portfolio_df$r)) %>%
   ggplot(aes(r)) +
   geom_histogram(aes(y =..density..),
@@ -160,12 +123,19 @@ tibble(r = as.numeric(portfolio_df$r)) %>%
     caption = "source: own calculations"
   )
 ```
+As we can see, the distribution of the returns is **highly leptokurtic**.
 
-```{r}
-jarque.bera.test(na.omit(portfolio_df$r))
-durbinWatsonTest(lm(portfolio_df$r ~ 1), max.lag = 5)
-
+```{r jargue-bera}
+jarque.bera.test(portfolio_df$r)
 ```
+The null hypothesis about normality strongly rejected!
+
+#Testing for ARCH effects.
+```{r test for arch}
+ArchTest(portfolio_df$r,lags = 5)
+```
+There is very strong evidence to reject the null-hypothesis that there are no ARCH effects in the data.
+
 Standardization of returns.
 
 ```{r}
