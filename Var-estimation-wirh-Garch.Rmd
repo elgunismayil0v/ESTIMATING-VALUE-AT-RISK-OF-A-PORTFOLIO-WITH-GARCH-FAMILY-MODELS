@@ -28,11 +28,11 @@ library(fBasics)
 
 ```{r data}
 # Define the tickers
-Dow_Jones <- getSymbols("^DJI",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE)
-Tmsc <- getSymbols("TSM",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE)
-Pound <- getSymbols("GBPUSD=X",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE)
-Silver <- getSymbols("SI=F",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE)
-BNB<- na_locf(getSymbols("BNB-USD",src = "yahoo",from = "2019-01-01", to = "2023-01-01",auto.assign = FALSE))
+Dow_Jones <- getSymbols("^DJI",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
+Tmsc <- getSymbols("TSM",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
+Pound <- getSymbols("GBPUSD=X",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
+Silver <- getSymbols("SI=F",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
+BNB<- na_locf(getSymbols("BNB-USD",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE))
 # Extract the adjusted closing prices for each symbol
 
 Pound$adjusted <- na_locf(Pound$`GBPUSD=X.Adjusted`)
@@ -66,8 +66,22 @@ weight <- 0.2
 portfolio_returns <- combined_returns * weight
 
 # Convert the xts object to a data frame
-portfolio_df <- data.frame(date = index(combined_returns), portfolio_returns = coredata(portfolio_returns))
-portfolio_df <- na.omit(portfolio_df)
+portfolio_df1 <- data.frame(date = index(combined_returns), portfolio_returns = coredata(portfolio_returns))
+portfolio_df1 <- na.omit(portfolio_df1)
+
+
+# Ensure the date column is in Date format
+portfolio_df1$date <- as.Date(portfolio_df1$date)
+
+# Removing observations after `2023-01-01`
+
+# Splitting the data into two parts: until 2023 and from 2023 to 2024
+portfolio_df <- portfolio_df1 %>%
+  filter(date <= as.Date("2023-01-01"))
+
+
+
+
 # Print the portfolio data frame
 print(portfolio_df)
 
@@ -189,7 +203,12 @@ For comparison: 1% quantile of standard normal distribution
 qnorm(0.01,0,1)
 
 ```
-Estimating the GARCH(1,1) model.
+# GARCH extensions
+
+
+
+
+#Estimating the GARCH(1,1) model.
 
 ```{r}
 spec <- ugarchspec(variance.model = list(model="sGARCH",garchOrder= c(1,1)),mean.model = list(armaOrder = c(0,0), include.mean= T),distribution.model = "norm")
@@ -202,6 +221,41 @@ portfolio_df.garch11 <- ugarchfit(spec = spec, data = na.omit(portfolio_df$r))
 plot(portfolio_df.garch11, which=10)
 plot(portfolio_df.garch11, which=11)
 ```
+
+
+## The EGARCH model
+Here, first we have to define a model specification:
+```{r}
+spec <- ugarchspec(# variance equation
+                   variance.model = list(model = "eGARCH", 
+                                         garchOrder = c(1, 1)),
+                   # sGARCH would stand for standard GARCH model
+                   # mean equation
+                   mean.model = list(armaOrder = c(0, 0), 
+                                     include.mean = TRUE), 
+                   # assumed distribution of errors
+                   distribution.model = "norm")
+
+```
+estimate the model:
+```{r}
+k.egarch11 <- ugarchfit(spec = spec, 
+                           data = portfolio_df$r)
+```
+Now, we can see the results:
+```{r}
+k.egarch11
+```
+News-impact curve
+```{r}
+plot(k.egarch11, which = 12)
+
+
+```
+## The GARCH-in-Mean model 
+
+
+
 # VaR in the IN-SAMPLE period
 ```{r}
 str(portfolio_df.garch11)
@@ -272,3 +326,61 @@ plot(
 abline(h = unconditional_sigma * sqrt(252), col = "red")
 ```
 
+```{r}
+start <- which(portfolio_df1$date == as.Date("2023-01-03"))
+finish <- which(portfolio_df1$date == as.Date("2024-05-31"))
+
+# Check if start and finish indices are found
+if (length(start) == 0 || length(finish) == 0) {
+  stop("Start or finish date not found in the NASDAQ data.")
+}
+
+# Subset NASDAQ directly using indices
+portfolio_df3 <- portfolio_df1[start:finish, ]
+
+# Calculate the number of days between start and finish
+num_days <- finish - start + 1
+
+if (num_days <= 0) {
+  stop("Number of days is not calculated correctly.")
+}
+# Initialize VaR vector
+VaR <- rep(NA, times = num_days)
+
+
+portfolio_df3$var <- VaR
+head(portfolio_df3)
+```
+
+
+Now, the loop below calculates predictions of VaR for the whole **OUT-OF-SAMPLE** period
+```{r}
+start <- which(portfolio_df1$date == as.Date("2023-01-03"))
+finish <- which(portfolio_df1$date == as.Date("2024-05-31"))
+portfolio_df2 <- portfolio_df1[start:finish, ]
+VaR <- rep(NA, times = finish - start + 1)
+
+mu     <- rep(NA, times = finish - start + 1)
+omega  <- rep(NA, times = finish - start + 1)
+alpha1 <- rep(NA, times = finish - start + 1)
+beta1  <- rep(NA, times = finish - start + 1)
+```
+
+Adding VaR values to the data.frame objects.
+
+```{r}
+portfolio_df2$Var <- VaR
+head(portfolio_df2)
+```
+Plot of returns vs. VaR in the **OUT-OF-SAMPLE** period
+```{r}
+plot(portfolio_df2$Date, portfolio_df2$r, col = "red", lwd = 1, type = 'l',
+     ylim = c(-0.20, 0.20))
+abline(h = 0, lty = 2)
+lines(portfolio_df2$Date, portfolio_df2$Var, type = 'l', col = "green")
+```
+
+In how many days losses were higher than the assumed VaR? 
+```{r}
+sum(portfolio_df2$r < portfolio_df2$Var) / length(portfolio_df2$Var)
+```
