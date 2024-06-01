@@ -218,8 +218,10 @@ portfolio_df.garch11 <- ugarchfit(spec = spec, data = na.omit(portfolio_df$r))
 ```
 
 ```{r}
+plot(portfolio_df.garch11, which=3)
 plot(portfolio_df.garch11, which=10)
 plot(portfolio_df.garch11, which=11)
+plot(portfolio_df.garch11, which=12)
 ```
 
 
@@ -239,23 +241,135 @@ spec <- ugarchspec(# variance equation
 ```
 estimate the model:
 ```{r}
-k.egarch11 <- ugarchfit(spec = spec, 
+portfolio_df.egarch11 <- ugarchfit(spec = spec, 
                            data = portfolio_df$r)
 ```
 Now, we can see the results:
 ```{r}
-k.egarch11
+portfolio_df.egarch11
 ```
 News-impact curve
 ```{r}
-plot(k.egarch11, which = 12)
+plot(portfolio_df.egarch11, which = 3)
+plot(portfolio_df.egarch11, which = 10)
+plot(portfolio_df.egarch11, which = 11)
+plot(portfolio_df.egarch11, which = 12)
 
 
 ```
 ## The GARCH-in-Mean model 
 
+Let's first define a model specification:
+```{r}
+spec <- ugarchspec(# variance equation
+                   variance.model = list(model = "sGARCH", 
+                                         # sGARCH = standard GARCH
+                                         garchOrder = c(1, 1)),
+                   # mean equation - lets turn on the intercept term
+                   mean.model = list(armaOrder = c(1, 0), 
+                                     include.mean = TRUE,
+                       # we add an element to the mean equation,
+                       # which can be either stdev (archpow 1)
+                       # or var (archpow=2)
+                                     archm = TRUE, archpow = 1), 
+                   # assumed distribution of errors
+                   distribution.model = "norm")
+```
+
+Then, we can estimate the model:
+```{r}
+portfolio_df.garchm11 <- ugarchfit(spec = spec, 
+                           data = portfolio_df$r)
+```
+
+Let's examine the results:
+```{r}
+portfolio_df.garchm11
+```
+News-impact curve
+```{r}
+plot(portfolio_df.garchm11, which = 3)
+plot(portfolio_df.garchm11, which = 10)
+plot(portfolio_df.garchm11, which = 11)
+plot(portfolio_df.garchm11, which = 12)
 
 
+```
+## The GARCH-t model 
+Let's see whether conditional distribution of the error term can be better described by the t-Student distribution.
+
+Let's first define a model specification:
+```{r}
+spec <- ugarchspec(# variance equation
+                   variance.model = list(model = "sGARCH", 
+                                         garchOrder = c(1, 1)),
+                   # mean equation
+                   mean.model = list(armaOrder = c(0, 0), 
+                                     include.mean = TRUE), 
+                   # assumed distribution of errors
+                   distribution.model = "std") # std = t-Student
+```
+Then, we estimate the model:
+```{r}
+portfolio_df.garcht11 <- ugarchfit(spec = spec, 
+                           data = portfolio_df$r)
+```
+
+Model summary:
+```{r}
+portfolio_df.garcht11
+```
+News-impact curve
+```{r}
+plot(portfolio_df.garcht11, which = 3)
+plot(portfolio_df.garcht11, which = 10)
+plot(portfolio_df.garcht11, which = 11)
+plot(portfolio_df.garcht11, which = 12)
+
+
+```
+
+## The EGARCH in mean-t model
+Let's first define the model specification:
+```{r}
+spec <- ugarchspec(# variance equation
+                   variance.model = list(model = "eGARCH", 
+                                         garchOrder = c(2, 1)),
+                   # mean equation
+                   mean.model = list(armaOrder = c(1, 0), 
+                                     include.mean = TRUE,
+                                     archm = TRUE, archpow = 1), 
+                   # assumed distribution of errors
+                   distribution.model = "std") # std = t-Student
+```
+Now, we estimate the model:
+```{r}
+portfolio_df.egarchmt11 <- ugarchfit(spec = spec, 
+                             data = portfolio_df$r)
+```
+
+The model summary:
+```{r}
+portfolio_df.egarchmt11
+```
+News-impact curve
+```{r}
+plot(portfolio_df.garcht11, which = 3)
+plot(portfolio_df.garcht11, which = 10)
+plot(portfolio_df.garcht11, which = 11)
+plot(portfolio_df.garcht11, which = 12)
+
+
+```
+
+Now, let's compare information criteria for all models:
+```{r}
+compare_ICs_ugarchfit(c("portfolio_df.garch11",
+                        "portfolio_df.egarch11",
+                        "portfolio_df.garchm11", 
+                        "portfolio_df.garcht11", 
+                        "portfolio_df.egarchmt11"))
+```
 # VaR in the IN-SAMPLE period
 ```{r}
 str(portfolio_df.garch11)
