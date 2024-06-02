@@ -42,7 +42,7 @@ Dow_Jones$adjusted <- na_locf(Dow_Jones$DJI.Adjusted)
 Tmsc$adjusted <- na_locf(Tmsc$TSM.Adjusted)
 Pound$adjusted <- na_locf(Pound$GBPUSD.X.Adjusted)
 Silver$adjusted <- na_locf(Silver$SI.F.Adjusted)
-BNB$adjusted <- na_locf(BNB$BNB.USD.Adjusted)
+BNB$adjusted <- na_locf(BNB$`BNB-USD.Adjusted`)
 ```
 #Log return of ecah asset
 ```{r log_return}
@@ -174,21 +174,37 @@ qnorm(0.01,0,1)
 
 
 #Estimating the GARCH(1,1) model.
-
+Here, first we have to define a model specification:
 ```{r}
 spec <- ugarchspec(variance.model = list(model="sGARCH",garchOrder= c(1,1)),mean.model = list(armaOrder = c(0,0), include.mean= T),distribution.model = "norm")
-
-portfolio_df.garch11 <- ugarchfit(spec = spec, data = na.omit(portfolio_df$r))
-
 ```
-
+Estimate the model:
 ```{r}
-plot(portfolio_df.garch11, which=3)
+portfolio_df.garch11 <- ugarchfit(spec = spec, 
+                           data = portfolio_df$r)
+```
+Now, we can see the results:
+```{r summary of garch11}
+portfolio_df.garch11
+```
+# Interpration of results
+   1.**Ljung-Box Tests for Residuals and Squared Residuals**: The Ljung-Box tests for both standardized residuals and squared standardized residuals indicate that there is no significant autocorrelation remaining in the residuals at the tested lags. 
+   2.**Arch Test for Residuals**: No remaining ARCH effects, suggesting the model has adequately captured conditional heteroscedasticity.
+   3.**Nyblom Stability Test**: Indicates potential instability in the model parameters over time, particularly the constant term (ω).
+   4.**Sign Bias Test**: Shows no evidence of asymmetry in the impact of positive and negative shocks on volatility, suggesting the model handles these shocks symmetrically.
+   5.**Adjusted Pearson Goodness-of-Fit Test**: Reveals significant deviations from normality in the model's residuals, indicating the model may not adequately capture the true distribution of the data.
+   
+```{r ACF of residuals }
 plot(portfolio_df.garch11, which=10)
 plot(portfolio_df.garch11, which=11)
-plot(portfolio_df.garch11, which=12)
 ```
 
+```{r conditional sd}
+plot(portfolio_df.garch11, which=2)
+```
+```{r news impact curve}
+plot(portfolio_df.garch11, which=12)
+```
 
 ## The EGARCH model
 Here, first we have to define a model specification:
@@ -204,7 +220,7 @@ spec <- ugarchspec(# variance equation
                    distribution.model = "norm")
 
 ```
-estimate the model:
+Estimate the model:
 ```{r}
 portfolio_df.egarch11 <- ugarchfit(spec = spec, 
                            data = portfolio_df$r)
@@ -213,9 +229,16 @@ Now, we can see the results:
 ```{r}
 portfolio_df.egarch11
 ```
+# Interpration
+   1.**Ljung-Box Tests for Residuals and Squared Residuals**: The Ljung-Box test results indicate no significant serial correlation, suggesting that the model is appropriate for capturing the autocorrelation in the time series data.Similarly, the test results for the squared residuals indicate no significant serial correlation, suggesting that the model adequately captures the conditional heteroscedasticity (volatility clustering).
+   2.**Arch Test for Residuals**: The fitted model adequately captures both autocorrelation and conditional heteroscedasticity in the time series data, indicating no significant serial correlation or ARCH effects in the residuals.
+   3.**Nyblom Stability Test**: The Nyblom stability test indicates that all parameters in the model are stable, with no significant evidence of instability in either individual or joint tests.
+   4.**Sign Bias Test**: Based on the Sign Bias Test results, there is no significant indication of a systematic bias in the signs of the residuals, suggesting that the model's residuals exhibit no discernible pattern in their signs.
+   5.**Adjusted Pearson Goodness-of-Fit Test**: The Adjusted Pearson Goodness-of-Fit Test results suggest that the model does not adequately fit the observed data across all groups. The low p-values indicate significant evidence against the model's fit, implying that the model may need adjustments or improvements to better capture the characteristics of the data.
+   
 News-impact curve
 ```{r}
-plot(portfolio_df.egarch11, which = 3)
+plot(portfolio_df.egarch11, which = 2)
 plot(portfolio_df.egarch11, which = 10)
 plot(portfolio_df.egarch11, which = 11)
 plot(portfolio_df.egarch11, which = 12)
@@ -231,7 +254,7 @@ spec <- ugarchspec(# variance equation
                                          # sGARCH = standard GARCH
                                          garchOrder = c(1, 1)),
                    # mean equation - lets turn on the intercept term
-                   mean.model = list(armaOrder = c(1, 0), 
+                   mean.model = list(armaOrder = c(0, 0), 
                                      include.mean = TRUE,
                        # we add an element to the mean equation,
                        # which can be either stdev (archpow 1)
@@ -251,6 +274,14 @@ Let's examine the results:
 ```{r}
 portfolio_df.garchm11
 ```
+# Interpration
+   1.**Ljung-Box Tests for Residuals and Squared Residuals**: Both the Weighted Ljung-Box tests on standardized residuals and standardized squared residuals suggest that there is no evidence of serial correlation in the residuals at the 5% significance level.  
+   2.**Arch Test for Residuals**: These results suggest that there is no significant evidence of autoregressive conditional heteroskedasticity (ARCH effects) in the residuals of the model at the 5% significance level. 
+   3.**Nyblom Stability Test**: he Nyblom stability test suggests that the model's parameters are stable.
+   4.**Sign Bias Test**: the Sign Bias Test suggests that there's no significant systematic bias in the signs of the residuals.
+   5.**Adjusted Pearson Goodness-of-Fit Test**: Reject the null hypothesis and conclude that there is a significant difference between the observed and expected frequencies in each group.
+
+
 News-impact curve
 ```{r}
 plot(portfolio_df.garchm11, which = 3)
@@ -284,6 +315,14 @@ Model summary:
 ```{r}
 portfolio_df.garcht11
 ```
+# Interpration
+   1.**Ljung-Box Tests for Residuals and Squared Residuals**: There is no evidence of significant serial correlation in the residuals of your time series model.
+   2.**Arch Test for Residuals**: There is no significant ARCH effect present in the residuals of your time series model at the conventional significance level.
+   3.**Nyblom Stability Test**: There is evidence of instability in the parameters of your time series model, particularly for "omega" and "beta1".
+   4.**Sign Bias Test**: There is no evidence of systematic sign bias in the residuals of your time series model.
+   5.**Adjusted Pearson Goodness-of-Fit Test**: There isn't significant evidence to suggest a lack of fit between the observed and expected frequencies in each group, based on the adjusted Pearson goodness-of-fit test.
+   
+   
 News-impact curve
 ```{r}
 plot(portfolio_df.garcht11, which = 3)
@@ -299,9 +338,9 @@ Let's first define the model specification:
 ```{r}
 spec <- ugarchspec(# variance equation
                    variance.model = list(model = "eGARCH", 
-                                         garchOrder = c(2, 1)),
+                                         garchOrder = c(1, 1)),
                    # mean equation
-                   mean.model = list(armaOrder = c(1, 0), 
+                   mean.model = list(armaOrder = c(0, 0), 
                                      include.mean = TRUE,
                                      archm = TRUE, archpow = 1), 
                    # assumed distribution of errors
@@ -317,6 +356,13 @@ The model summary:
 ```{r}
 portfolio_df.egarchmt11
 ```
+# Interpration
+   1.**Ljung-Box Tests for Residuals and Squared Residuals**: There is no significant serial correlation present in the residuals or their squares based on these tests.
+   2.**Arch Test for Residuals**: There is not enough evidence to reject the null hypothesis of no conditional heteroskedasticity at any of the tested lag lengths. Therefore, based on these results, the data do not exhibit significant conditional heteroskedasticity.
+   3.**Nyblom Stability Test**: There is no evidence to suggest parameter instability in your model.
+   4.**Sign Bias Test**: there's no significant evidence to suggest a systematic bias in the predictions of your model. 
+   5.**Adjusted Pearson Goodness-of-Fit Test**: There's no strong evidence to suggest significant deviations between the observed data and the specified theoretical distribution for most groups.
+
 News-impact curve
 ```{r}
 plot(portfolio_df.garcht11, which = 3)
