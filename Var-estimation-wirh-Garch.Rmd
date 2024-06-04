@@ -40,9 +40,9 @@ BNB<- getSymbols("BNB-USD",src = "yahoo",from = "2019-01-01", to = "2024-06-01",
 ```{r data cleaning}
 Dow_Jones$adjusted <- na_locf(Dow_Jones$DJI.Adjusted)
 Tmsc$adjusted <- na_locf(Tmsc$TSM.Adjusted)
-Pound$adjusted <- na_locf(Pound$GBPUSD.X.Adjusted)
+Pound$adjusted <- na_locf(Pound$`GBPUSD.X.Adjusted`)
 Silver$adjusted <- na_locf(Silver$SI.F.Adjusted)
-BNB$adjusted <- na_locf(BNB$`BNB-USD.Adjusted`)
+BNB$adjusted <- na_locf(BNB$BNB.USD.Adjusted)
 ```
 #Log return of ecah asset
 ```{r log_return}
@@ -381,21 +381,19 @@ compare_ICs_ugarchfit(c("portfolio_df.garch11",
                         "portfolio_df.garcht11", 
                         "portfolio_df.egarchmt11"))
 ```
-# VaR in the IN-SAMPLE period
+# VaR in the IN-SAMPLE period for the GARCH-t model
 ```{r}
-str(portfolio_df.garch11)
-head(portfolio_df.garch11@fit$sigma)
-
+str(portfolio_df.garcht11)
+head(portfolio_df.garcht11@fit$sigma)
 ```
-Calculating value-at-risk (VaR).
-```{r}
-portfolio_df$var <- q01*portfolio_df.garch11@fit$sigma
+Calculating value-at-risk (VaR) the GARCH-t model.
+```{r var for garch-t}
+portfolio_df$var <- q01*portfolio_df.garcht11@fit$sigma
 tail(portfolio_df)
-
 ```
 Plot of returns vs value-at-risk.
 
-```{r}
+```{r var plot}
 plot(portfolio_df$date,portfolio_df$r,  col="red", 
      lwd=1,type="l", ylim= c(-0.1, 0.1))
 abline(h = 0, lty = 2)
@@ -410,30 +408,30 @@ sum(portfolio_df$r < portfolio_df$var)/ length(portfolio_df$var)
 
 ```
 
-# VaR in the OUT-OF-SAMPLE period
+# VaR in the OUT-OF-SAMPLE period fot the GARCH-t model
 Plot of conditional standard deviation and its on-day ahead prediction.
-```{r}
-plot(ugarchforecast(portfolio_df.garch11, na.ahead=1), which=3)
+```{r sd plot}
+plot(ugarchforecast(portfolio_df.garcht11, na.ahead=1), which=3)
 
 ```
 Plot of conditional standard deviation forecasts in the long run.
-```{r}
-plot(ugarchforecast(portfolio_df.garch11, n.ahead = 200), which=3)
+```{r sd long}
+plot(ugarchforecast(portfolio_df.garcht11, n.ahead = 200), which=3)
 
 ```
 
 We can combine them with the in-sample estimation of conditional standard deviation
 
 ```{r}
-sigma.forecast.longrun <- ugarchforecast(portfolio_df.garch11, n.ahead = 500)
+sigma.forecast.longrun <- ugarchforecast(portfolio_df.garcht11, n.ahead = 500)
 unconditional_sigma <- 
   sqrt(
     portfolio_df.garch11@model$pars["omega", 1] / 
       (1 - 
-         portfolio_df.garch11@model$pars["alpha1", 1] -
-         portfolio_df.garch11@model$pars["beta1", 1]))
+         portfolio_df.garcht11@model$pars["alpha1", 1] -
+         portfolio_df.garcht11@model$pars["beta1", 1]))
 plot(
-  c(as.numeric(portfolio_df.garch11@fit$sigma),
+  c(as.numeric(portfolio_df.garcht11@fit$sigma),
     as.numeric(sigma.forecast.longrun@forecast$sigmaFor)),
   type = "l",
   ylab = "sigma")
@@ -444,37 +442,11 @@ abline(h = unconditional_sigma, col = "red")
 Yet a better idea is to annualize all of these values. 
 ```{r}
 plot(
-  c(as.numeric(portfolio_df.garch11@fit$sigma * sqrt(252)),
+  c(as.numeric(portfolio_df.garcht11@fit$sigma * sqrt(252)),
     as.numeric(sigma.forecast.longrun@forecast$sigmaFor * sqrt(252))),
   type = "l",
   ylab = "sigma annualized")
 abline(h = unconditional_sigma * sqrt(252), col = "red")
-```
-
-```{r}
-start <- which(portfolio_df1$date == as.Date("2023-01-03"))
-finish <- which(portfolio_df1$date == as.Date("2024-05-31"))
-
-# Check if start and finish indices are found
-if (length(start) == 0 || length(finish) == 0) {
-  stop("Start or finish date not found in the NASDAQ data.")
-}
-
-# Subset NASDAQ directly using indices
-portfolio_df3 <- portfolio_df1[start:finish, ]
-
-# Calculate the number of days between start and finish
-num_days <- finish - start + 1
-
-if (num_days <= 0) {
-  stop("Number of days is not calculated correctly.")
-}
-# Initialize VaR vector
-VaR <- rep(NA, times = num_days)
-
-
-portfolio_df3$var <- VaR
-head(portfolio_df3)
 ```
 
 
@@ -496,6 +468,106 @@ Adding VaR values to the data.frame objects.
 ```{r}
 portfolio_df2$Var <- VaR
 head(portfolio_df2)
+```
+Plot of returns vs. VaR in the **OUT-OF-SAMPLE** period
+```{r}
+plot(portfolio_df2$Date, portfolio_df2$r, col = "red", lwd = 1, type = 'l',
+     ylim = c(-0.20, 0.20))
+abline(h = 0, lty = 2)
+lines(portfolio_df2$Date, portfolio_df2$Var, type = 'l', col = "green")
+```
+
+In how many days losses were higher than the assumed VaR? 
+```{r}
+sum(portfolio_df2$r < portfolio_df2$Var) / length(portfolio_df2$Var)
+```
+
+# VaR in the IN-SAMPLE period for the GARCH-mean-t model
+```{r}
+str(portfolio_df.egarchmt11)
+head(portfolio_df.egarchmt11@fit$sigma)
+```
+Calculating value-at-risk (VaR) the GARCH-mean-t model.
+```{r}
+portfolio_df$varmt <- q01*portfolio_df.egarchmt11@fit$sigma
+tail(portfolio_df)
+```
+Plot of returns vs value-at-risk.
+
+```{r}
+plot(portfolio_df$date,portfolio_df$r,  col="red", 
+     lwd=1,type="l", ylim= c(-0.1, 0.1))
+abline(h = 0, lty = 2)
+lines(portfolio_df$date,portfolio_df$varmt,col="green", type="l")
+
+```
+
+In how many days losses were higher than the assumed value-at-risk?
+
+```{r}
+sum(portfolio_df$r < portfolio_df$varmt)/ length(portfolio_df$varmt)
+
+```
+
+# VaR in the OUT-OF-SAMPLE period for the GARCH-mean-t model
+Plot of conditional standard deviation and its on-day ahead prediction.
+```{r}
+plot(ugarchforecast(portfolio_df.egarchmt11, na.ahead=1), which=3)
+
+```
+Plot of conditional standard deviation forecasts in the long run.
+```{r c sd}
+plot(ugarchforecast(portfolio_df.egarchmt11, n.ahead = 200), which=3)
+
+```
+
+We can combine them with the in-sample estimation of conditional standard deviation
+
+```{r plot sd}
+sigma.forecast.longrun <- ugarchforecast(portfolio_df.egarchmt11, n.ahead = 500)
+unconditional_sigma <- 
+  sqrt(
+    portfolio_df.egarchmt11@model$pars["omega", 1] / 
+      (1 - 
+         portfolio_df.egarchmt11@model$pars["alpha1", 1] -
+         portfolio_df.egarchmt11@model$pars["beta1", 1]))
+plot(
+  c(as.numeric(portfolio_df.egarchmt11@fit$sigma),
+    as.numeric(sigma.forecast.longrun@forecast$sigmaFor)),
+  type = "l",
+  ylab = "sigma")
+abline(h = unconditional_sigma, col = "red")
+
+```
+
+Yet a better idea is to annualize all of these values. 
+```{r annulize}
+plot(
+  c(as.numeric(portfolio_df.egarchmt11@fit$sigma * sqrt(252)),
+    as.numeric(sigma.forecast.longrun@forecast$sigmaFor * sqrt(252))),
+  type = "l",
+  ylab = "sigma annualized")
+abline(h = unconditional_sigma * sqrt(252), col = "red")
+```
+
+Now, the loop below calculates predictions of VaR for the whole **OUT-OF-SAMPLE** period
+```{r out sample}
+start   <- portfolio_df1$obs[portfolio_df1$date == as.Date("2023-01-03")]
+finish  <- portfolio_df1$obs[portfolio_df1$date == as.Date("2024-05-31")]
+portfolio_df2 <- portfolio_df1[start:finish, ]
+VaR <- rep(NA, times = finish - start + 1)
+
+mu     <- rep(NA, times = finish - start + 1)
+omega  <- rep(NA, times = finish - start + 1)
+alpha1 <- rep(NA, times = finish - start + 1)
+beta1  <- rep(NA, times = finish - start + 1)
+```
+
+Adding VaR values to the data.frame objects.
+
+```{r}
+portfolio_df2$Var <- VaR
+head(portfolio_df2$Var)
 ```
 Plot of returns vs. VaR in the **OUT-OF-SAMPLE** period
 ```{r}
