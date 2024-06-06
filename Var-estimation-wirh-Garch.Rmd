@@ -49,7 +49,7 @@ colnames(Pound) <- c("Open", "High", "Low", "Close", "Volume","Adjusted")
 # Fetch data for Silver
 Silver <- getSymbols("SI=F", src = "yahoo", from = "2019-01-01", to = "2024-06-01", auto.assign = FALSE)
 # Rename the column
-colnames(Silver) <- c("Open", "High", "Low", "Close", "Adjusted", "Volume")
+colnames(Silver) <- c("Open", "High", "Low", "Close",  "Volume","Adjusted")
 
 # Fetch data for BNB
 BNB <- getSymbols("BNB-USD", src = "yahoo", from = "2019-01-01", to = "2024-06-01", auto.assign = FALSE)
@@ -70,12 +70,13 @@ BNB$Adjusted <- na_locf(BNB$Adjusted)
 #Log return of ecah asset
 
 ```{r log_return}
-epsilon <- 1e-8
-Dow_Jones$r <- diff.xts(log(Dow_Jones$Adjusted+epsilon))
-Tmsc$r <- diff.xts(log(Tmsc$Adjusted+epsilon))
-Pound$r <- diff.xts(log(Pound$Adjusted+epsilon))
-Silver$r <- diff.xts(log(Silver$Adjusted+epsilon))
-BNB$r <- diff.xts(log(BNB$Adjusted+epsilon))
+
+Dow_Jones$r <- diff.xts(log(Dow_Jones$Adjusted))
+Tmsc$r <- diff.xts(log(Tmsc$Adjusted))
+Pound$r <- diff.xts(log(Pound$Adjusted))
+Silver$r <- diff.xts(log(Silver$Adjusted))
+BNB$r <- diff.xts(log(BNB$Adjusted))
+print(Dow_Jones$r)
 ```
 
 #Portfolio construction
@@ -498,18 +499,44 @@ abline(h = unconditional_sigma * sqrt(252), col = "red")
 Now, the loop below calculates predictions of VaR for the whole **OUT-OF-SAMPLE** period
 
 
-```{r out sample}
+```{r out sample-t}
+portfolio_df1 <-
+  portfolio_df1 %>%
+  mutate(obs = row_number())
 start   <- portfolio_df1$obs[portfolio_df1$date == as.Date("2023-01-03")]
-finish  <- portfolio_df1$obs[portfolio_df1$date == as.Date("2024-05-31")]
+finish  <- portfolio_df1$obs[portfolio_df1$date == as.Date("2024-05-30")]
 portfolio_df2 <- portfolio_df1[start:finish, ]
 VaR <- rep(NA, times = finish - start + 1)
-
 mu     <- rep(NA, times = finish - start + 1)
 omega  <- rep(NA, times = finish - start + 1)
 alpha1 <- rep(NA, times = finish - start + 1)
 beta1  <- rep(NA, times = finish - start + 1)
 ```
-
+Calculation lasts for ~90-120 seconds:
+```{r}
+time1 <- Sys.time()
+for (k in start:finish) {
+    tmp.data <- portfolio_df1[portfolio_df1$obs <= (k - 1), ]
+    tmp.data <- tmp.data[as.Date("2019-01-01") <= tmp.data$date, ]
+    tmp.data$rstd <- 
+      (tmp.data$r - mean(tmp.data$r, na.rm = T)) / sd(tmp.data$r, na.rm = T)
+    q01  <- quantile(tmp.data$rstd, 0.01, na.rm = T)
+    spec <- 
+      ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+                 mean.model     = list(armaOrder = c(0, 0), include.mean = T),
+                 distribution.model = "std")
+    tmp.garch11           <- ugarchfit(spec = spec, data = na.omit(tmp.data$r))
+    sigma.forecast        <- ugarchforecast(tmp.garch11, n.ahead = 1)
+    sigma.forecast2       <- sigma.forecast@forecast$sigmaFor[1, 1]
+    VaR[k - start + 1]    <- q01 * sigma.forecast2
+    mu[k - start + 1]     <- tmp.garch11@fit$coef[1]
+    omega[k - start + 1]  <- tmp.garch11@fit$coef[2]
+    alpha1[k - start + 1] <- tmp.garch11@fit$coef[3]
+    beta1[k - start + 1]  <- tmp.garch11@fit$coef[4]
+  }
+time2 <- Sys.time()
+time2 - time1
+```
 
 Adding VaR values to the data.frame objects.
 
@@ -519,10 +546,10 @@ head(portfolio_df2$Var)
 ```
 Plot of returns vs. VaR in the **OUT-OF-SAMPLE** period
 ```{r}
-plot(portfolio_df2$Date, portfolio_df2$r, col = "red", lwd = 1, type = 'l',
+plot(portfolio_df2$date, portfolio_df2$r, col = "red", lwd = 1, type = 'l',
      ylim = c(-0.20, 0.20))
 abline(h = 0, lty = 2)
-lines(portfolio_df2$Date, portfolio_df2$Var, type = 'l', col = "green")
+lines(portfolio_df2$date, portfolio_df2$Var, type = 'l', col = "green")
 ```
 
 In how many days losses were higher than the assumed VaR? 
@@ -599,17 +626,45 @@ abline(h = unconditional_sigma * sqrt(252), col = "red")
 ```
 
 Now, the loop below calculates predictions of VaR for the whole **OUT-OF-SAMPLE** period
-```{r out sample}
+```{r out sample-mean-t}
+portfolio_df1 <-
+  portfolio_df1 %>%
+  mutate(obs = row_number())
 start   <- portfolio_df1$obs[portfolio_df1$date == as.Date("2023-01-03")]
-finish  <- portfolio_df1$obs[portfolio_df1$date == as.Date("2024-05-31")]
+finish  <- portfolio_df1$obs[portfolio_df1$date == as.Date("2024-05-30")]
 portfolio_df2 <- portfolio_df1[start:finish, ]
 VaR <- rep(NA, times = finish - start + 1)
-
 mu     <- rep(NA, times = finish - start + 1)
 omega  <- rep(NA, times = finish - start + 1)
 alpha1 <- rep(NA, times = finish - start + 1)
 beta1  <- rep(NA, times = finish - start + 1)
 ```
+Calculation lasts for ~90-120 seconds:
+```{r}
+time1 <- Sys.time()
+for (k in start:finish) {
+    tmp.data <- portfolio_df1[portfolio_df1$obs <= (k - 1), ]
+    tmp.data <- tmp.data[as.Date("2019-01-01") <= tmp.data$date, ]
+    tmp.data$rstd <- 
+      (tmp.data$r - mean(tmp.data$r, na.rm = T)) / sd(tmp.data$r, na.rm = T)
+    q01  <- quantile(tmp.data$rstd, 0.01, na.rm = T)
+    spec <- 
+      ugarchspec(variance.model = list(model = "eGARCH", garchOrder = c(1, 1)),
+                 mean.model     = list(armaOrder = c(0, 0), include.mean = T),
+                 distribution.model = "std")
+    tmp.garch11           <- ugarchfit(spec = spec, data = na.omit(tmp.data$r))
+    sigma.forecast        <- ugarchforecast(tmp.garch11, n.ahead = 1)
+    sigma.forecast2       <- sigma.forecast@forecast$sigmaFor[1, 1]
+    VaR[k - start + 1]    <- q01 * sigma.forecast2
+    mu[k - start + 1]     <- tmp.garch11@fit$coef[1]
+    omega[k - start + 1]  <- tmp.garch11@fit$coef[2]
+    alpha1[k - start + 1] <- tmp.garch11@fit$coef[3]
+    beta1[k - start + 1]  <- tmp.garch11@fit$coef[4]
+  }
+time2 <- Sys.time()
+time2 - time1
+```
+
 
 Adding VaR values to the data.frame objects.
 
@@ -619,10 +674,10 @@ head(portfolio_df2$Var)
 ```
 Plot of returns vs. VaR in the **OUT-OF-SAMPLE** period
 ```{r}
-plot(portfolio_df2$Date, portfolio_df2$r, col = "red", lwd = 1, type = 'l',
+plot(portfolio_df2$date, portfolio_df2$r, col = "red", lwd = 1, type = 'l',
      ylim = c(-0.20, 0.20))
 abline(h = 0, lty = 2)
-lines(portfolio_df2$Date, portfolio_df2$Var, type = 'l', col = "green")
+lines(portfolio_df2$date, portfolio_df2$Var, type = 'l', col = "green")
 ```
 
 In how many days losses were higher than the assumed VaR? 
