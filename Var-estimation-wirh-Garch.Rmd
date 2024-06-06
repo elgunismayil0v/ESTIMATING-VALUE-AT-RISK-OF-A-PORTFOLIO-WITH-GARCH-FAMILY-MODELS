@@ -23,34 +23,59 @@ library(FinTS)
 library(car)
 library(fBasics)
 ```
+Lets load additional function defined which will be used to to easily compare information criteria for ARCH and GARCH models.
+
+```{r}
+source("/Users/elgun/Desktop/ESTIMATING-VALUE-AT-RISK-OF-A-PORTFOLIO-WITH-GARCH-FAMILY-MODELS-Time-Series-project/functions/compare_ICs_ugarchfit.R")
+```
 
 # Import the data
+```{r}
+# Fetch data for Dow Jones
+Dow_Jones <- getSymbols("^DJI", src = "yahoo", from = "2019-01-01", to = "2024-06-01", auto.assign = FALSE)
+# Rename the column
+colnames(Dow_Jones) <- c("Open", "High", "Low", "Close", "Volume", "Adjusted")
 
-```{r data}
-# Define the tickers
-Dow_Jones <- getSymbols("^DJI",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
-Tmsc <- getSymbols("TSM",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
-Pound <- getSymbols("GBPUSD=X",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
-Silver <- getSymbols("SI=F",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
-BNB<- getSymbols("BNB-USD",src = "yahoo",from = "2019-01-01", to = "2024-06-01",auto.assign = FALSE)
-# Extract the adjusted closing prices for each symbol
+# Fetch data for TSMC
+Tmsc <- getSymbols("TSM", src = "yahoo", from = "2019-01-01", to = "2024-06-01", auto.assign = FALSE)
+# Rename the column
+colnames(Tmsc) <- c("Open", "High", "Low", "Close", "Volume", "Adjusted")
 
+# Fetch data for Pound
+Pound <- getSymbols("GBPUSD=X", src = "yahoo", from = "2019-01-01", to = "2024-06-01", auto.assign = FALSE)
+# Rename the column
+colnames(Pound) <- c("Open", "High", "Low", "Close", "Volume","Adjusted")
+
+# Fetch data for Silver
+Silver <- getSymbols("SI=F", src = "yahoo", from = "2019-01-01", to = "2024-06-01", auto.assign = FALSE)
+# Rename the column
+colnames(Silver) <- c("Open", "High", "Low", "Close", "Adjusted", "Volume")
+
+# Fetch data for BNB
+BNB <- getSymbols("BNB-USD", src = "yahoo", from = "2019-01-01", to = "2024-06-01", auto.assign = FALSE)
+# Rename the column
+colnames(BNB) <- c("Open", "High", "Low", "Close", "Volume", "Adjusted")
+
+print(Pound)
 ```
+
 #Handling with NA values use na_locf
 ```{r data cleaning}
-Dow_Jones$adjusted <- na_locf(Dow_Jones$DJI.Adjusted)
-Tmsc$adjusted <- na_locf(Tmsc$TSM.Adjusted)
-Pound$adjusted <- na_locf(Pound$`GBPUSD.X.Adjusted`)
-Silver$adjusted <- na_locf(Silver$SI.F.Adjusted)
-BNB$adjusted <- na_locf(BNB$BNB.USD.Adjusted)
+Dow_Jones$Adjusted <- na_locf(Dow_Jones$Adjusted)
+Tmsc$Adjusted <- na_locf(Tmsc$Adjusted)
+Pound$Adjusted <- na_locf(Pound$Adjusted)
+Silver$Adjusted <- na_locf(Silver$Adjusted)
+BNB$Adjusted <- na_locf(BNB$Adjusted)
 ```
 #Log return of ecah asset
+
 ```{r log_return}
-Dow_Jones$r <- diff.xts(log(Dow_Jones$adjusted))
-Tmsc$r <- diff.xts(log(Tmsc$adjusted))
-Pound$r <- diff.xts(log(Pound$adjusted))
-Silver$r <- diff.xts(log(Silver$adjusted))
-BNB$r <- diff.xts(log(BNB$adjusted))
+epsilon <- 1e-8
+Dow_Jones$r <- diff.xts(log(Dow_Jones$Adjusted+epsilon))
+Tmsc$r <- diff.xts(log(Tmsc$Adjusted+epsilon))
+Pound$r <- diff.xts(log(Pound$Adjusted+epsilon))
+Silver$r <- diff.xts(log(Silver$Adjusted+epsilon))
+BNB$r <- diff.xts(log(BNB$Adjusted+epsilon))
 ```
 
 #Portfolio construction
@@ -65,13 +90,12 @@ portfolio_df1 <- data.frame(date = index(combined_returns), portfolio_returns = 
 portfolio_df1 <- na.omit(portfolio_df1)
 # Ensure the date column is in Date format
 portfolio_df1$date <- as.Date(portfolio_df1$date)
-
 # Removing observations after `2023-01-01`
 portfolio_df <- portfolio_df1 %>%
   filter(date <= as.Date("2023-01-01"))
 
 # Print the portfolio data frame
-print(portfolio_df)
+print(na.omit(portfolio_df))
 
 ```
 
@@ -382,10 +406,31 @@ compare_ICs_ugarchfit(c("portfolio_df.garch11",
                         "portfolio_df.egarchmt11"))
 ```
 # VaR in the IN-SAMPLE period for the GARCH-t model
+
+Standardization of returns.
+```{r}
+portfolio_df$rstd <- (portfolio_df$r - mean(portfolio_df$r, na.rm = T)) /
+    sd(portfolio_df$r ,na.rm = T)
+tail(portfolio_df)
+```
+1% empirical quantile
+```{r}
+q01 <- quantile(portfolio_df$rstd, 0.01, na.rm = T)
+q01
+```
+
+For comparison: 1% quantile of standard normal distribution
+```{r}
+qnorm(0.01, 0, 1)
+```
+
+
 ```{r}
 str(portfolio_df.garcht11)
 head(portfolio_df.garcht11@fit$sigma)
 ```
+
+
 Calculating value-at-risk (VaR) the GARCH-t model.
 ```{r var for garch-t}
 portfolio_df$var <- q01*portfolio_df.garcht11@fit$sigma
@@ -451,9 +496,11 @@ abline(h = unconditional_sigma * sqrt(252), col = "red")
 
 
 Now, the loop below calculates predictions of VaR for the whole **OUT-OF-SAMPLE** period
-```{r}
-start <- which(portfolio_df1$date == as.Date("2023-01-03"))
-finish <- which(portfolio_df1$date == as.Date("2024-05-31"))
+
+
+```{r out sample}
+start   <- portfolio_df1$obs[portfolio_df1$date == as.Date("2023-01-03")]
+finish  <- portfolio_df1$obs[portfolio_df1$date == as.Date("2024-05-31")]
 portfolio_df2 <- portfolio_df1[start:finish, ]
 VaR <- rep(NA, times = finish - start + 1)
 
@@ -463,11 +510,12 @@ alpha1 <- rep(NA, times = finish - start + 1)
 beta1  <- rep(NA, times = finish - start + 1)
 ```
 
+
 Adding VaR values to the data.frame objects.
 
 ```{r}
-portfolio_df2$Var <- VaR
-head(portfolio_df2)
+portfolio_df2$Var <- VaR 
+head(portfolio_df2$Var)
 ```
 Plot of returns vs. VaR in the **OUT-OF-SAMPLE** period
 ```{r}
