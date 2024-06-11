@@ -203,12 +203,14 @@ For comparison: 1% quantile of standard normal distribution
 qnorm(0.01,0,1)
 
 ```
-# GARCH extensions
+
+# Build GARCH models
 
 
 
 
-## Estimating the GARCH(1,1) model.
+## Estimating the GARCH(1,1) 
+
 Here, first we have to define a model specification:
 ```{r}
 spec <- ugarchspec(variance.model = list(model="sGARCH",garchOrder= c(1,1)),mean.model = list(armaOrder = c(0,0), include.mean= T),distribution.model = "norm")
@@ -222,27 +224,47 @@ Now, we can see the results:
 ```{r summary of garch11}
 portfolio_df.garch11
 ```
+
 Interpration of results
+
    1.**Ljung-Box Tests for Residuals and Squared Residuals**: The Ljung-Box tests for both standardized residuals and squared standardized residuals indicate that there is no significant autocorrelation remaining in the residuals at the tested lags. 
-   2.**Arch Test for Residuals**: No remaining ARCH effects, suggesting the model has adequately captured conditional heteroscedasticity.
-   3.**Nyblom Stability Test**: Indicates potential instability in the model parameters over time, particularly the constant term (ω).
-   4.**Sign Bias Test**: Shows no evidence of asymmetry in the impact of positive and negative shocks on volatility, suggesting the model handles these shocks symmetrically.
-   5.**Adjusted Pearson Goodness-of-Fit Test**: Reveals significant deviations from normality in the model's residuals, indicating the model may not adequately capture the true distribution of the data.
    
+   2.**Arch Test for Residuals**: No remaining ARCH effects, suggesting the model has adequately captured conditional heteroscedasticity.
+   
+   3.**Nyblom Stability Test**: Indicates potential instability in the model parameters over time, particularly the constant term (ω).
+   
+   4.**Sign Bias Test**: Shows no evidence of asymmetry in the impact of positive and negative shocks on volatility, suggesting the model handles these shocks symmetrically.
+   
+   5.**Adjusted Pearson Goodness-of-Fit Test**: Reveals significant deviations from normality in the model's residuals, indicating the model may not adequately capture the true distribution of the data.
+
+
+Conditional SD (vs |returns|) 
+```{r conditional sd}
+plot(portfolio_df.garch11, which=3)
+```
+
+
+There are periods where the volatility is relatively low and stable, suggesting less market turbulence.
+
+ACF of Standardized Residuals
 ```{r ACF of residuals }
 plot(portfolio_df.garch11, which=10)
+```
+ACF of Squared Standardized Residuals 
+```{r}
 plot(portfolio_df.garch11, which=11)
 ```
 
-```{r conditional sd}
-plot(portfolio_df.garch11, which=2)
-```
 ```{r news impact curve}
 plot(portfolio_df.garch11, which=12)
 ```
 
+Positive and negative shocks of equal magnitude have the same impact on volatility. The U-shaped curve indicates that both positive and negative shocks increase volatility, but the impact diminishes as the magnitude of the shock decreases.
+
 ## The EGARCH model
+
 Here, first we have to define a model specification:
+
 ```{r}
 spec <- ugarchspec(# variance equation
                    variance.model = list(model = "eGARCH", 
@@ -264,22 +286,46 @@ Now, we can see the results:
 ```{r}
 portfolio_df.egarch11
 ```
-Interpration
-   1.**Ljung-Box Tests for Residuals and Squared Residuals**: The Ljung-Box test results indicate no significant serial correlation, suggesting that the model is appropriate for capturing the autocorrelation in the time series data.Similarly, the test results for the squared residuals indicate no significant serial correlation, suggesting that the model adequately captures the conditional heteroscedasticity (volatility clustering).
-   2.**Arch Test for Residuals**: The fitted model adequately captures both autocorrelation and conditional heteroscedasticity in the time series data, indicating no significant serial correlation or ARCH effects in the residuals.
-   3.**Nyblom Stability Test**: The Nyblom stability test indicates that all parameters in the model are stable, with no significant evidence of instability in either individual or joint tests.
-   4.**Sign Bias Test**: Based on the Sign Bias Test results, there is no significant indication of a systematic bias in the signs of the residuals, suggesting that the model's residuals exhibit no discernible pattern in their signs.
-   5.**Adjusted Pearson Goodness-of-Fit Test**: The Adjusted Pearson Goodness-of-Fit Test results suggest that the model does not adequately fit the observed data across all groups. The low p-values indicate significant evidence against the model's fit, implying that the model may need adjustments or improvements to better capture the characteristics of the data.
-   
-News-impact curve
-```{r}
-plot(portfolio_df.egarch11, which = 2)
-plot(portfolio_df.egarch11, which = 10)
-plot(portfolio_df.egarch11, which = 11)
-plot(portfolio_df.egarch11, which = 12)
 
+Interpration
+
+   1.**Ljung-Box Tests for Residuals and Squared Residuals**: The Ljung-Box test results indicate no significant serial correlation, suggesting that the model is appropriate for capturing the autocorrelation in the time series data.Similarly, the test results for the squared residuals indicate no significant serial correlation, suggesting that the model adequately captures the conditional heteroscedasticity (volatility clustering).
+   
+   2.**Arch Test for Residuals**: The fitted model adequately captures both autocorrelation and conditional heteroscedasticity in the time series data, indicating no significant serial correlation or ARCH effects in the residuals.
+   
+   3.**Nyblom Stability Test**: The Nyblom stability test indicates that all parameters in the model are stable, with no significant evidence of instability in either individual or joint tests.
+   
+   4.**Sign Bias Test**: Based on the Sign Bias Test results, there is no significant indication of a systematic bias in the signs of the residuals, suggesting that the model's residuals exhibit no discernible pattern in their signs.
+   
+   5.**Adjusted Pearson Goodness-of-Fit Test**: The Adjusted Pearson Goodness-of-Fit Test results suggest that the model does not adequately fit the observed data across all groups. The low p-values indicate significant evidence against the model's fit, implying that the model may need adjustments or improvements to better capture the characteristics of the data.
+
+Conditional SD (vs |returns|)
+```{r}
+plot(portfolio_df.egarch11, which = 3)
+```
+
+There are periods where the volatility is relatively low and stable, suggesting less market turbulence.
+
+ACF of Standardized Residuals
+```{r}
+plot(portfolio_df.egarch11, which = 10)
 
 ```
+
+ACF of Squared Standardized Residuals 
+```{r}
+plot(portfolio_df.egarch11, which = 11)
+
+```
+
+News-impact curve
+```{r}
+plot(portfolio_df.egarch11, which = 12)
+
+```
+
+Positive and negative shocks of equal magnitude have the same impact on volatility. The U-shaped curve indicates that both positive and negative shocks increase volatility, but the impact diminishes as the magnitude of the shock decreases.
+
 ## The GARCH-in-Mean model 
 
 Let's first define a model specification:
@@ -310,23 +356,48 @@ Let's examine the results:
 portfolio_df.garchm11
 ```
 Interpration
+
    1.**Ljung-Box Tests for Residuals and Squared Residuals**: Both the Weighted Ljung-Box tests on standardized residuals and standardized squared residuals suggest that there is no evidence of serial correlation in the residuals at the 5% significance level.  
+   
    2.**Arch Test for Residuals**: These results suggest that there is no significant evidence of autoregressive conditional heteroskedasticity (ARCH effects) in the residuals of the model at the 5% significance level. 
+   
    3.**Nyblom Stability Test**: he Nyblom stability test suggests that the model's parameters are stable.
+   
    4.**Sign Bias Test**: the Sign Bias Test suggests that there's no significant systematic bias in the signs of the residuals.
+   
    5.**Adjusted Pearson Goodness-of-Fit Test**: Reject the null hypothesis and conclude that there is a significant difference between the observed and expected frequencies in each group.
+
+Conditional SD (vs |returns|) 
+```{r}
+plot(portfolio_df.garchm11, which = 3)
+```
+
+There are periods where the volatility is relatively low and stable, suggesting less market turbulence.
+
+ACF of Standardized Residuals
+```{r}
+plot(portfolio_df.garchm11, which = 10)
+```
+
+ACF of Squared Standardized Residuals 
+
+```{r}
+
+plot(portfolio_df.garchm11, which = 11)
+
+```
 
 
 News-impact curve
 ```{r}
-plot(portfolio_df.garchm11, which = 3)
-plot(portfolio_df.garchm11, which = 10)
-plot(portfolio_df.garchm11, which = 11)
 plot(portfolio_df.garchm11, which = 12)
-
-
 ```
+
+Positive and negative shocks of equal magnitude have the same impact on volatility. The U-shaped curve indicates that both positive and negative shocks increase volatility, but the impact diminishes as the magnitude of the shock decreases.
+
+
 ## The GARCH-t model 
+
 Let's see whether conditional distribution of the error term can be better described by the t-Student distribution.
 
 Let's first define a model specification:
@@ -351,22 +422,41 @@ Model summary:
 portfolio_df.garcht11
 ```
 Interpration
+
    1.**Ljung-Box Tests for Residuals and Squared Residuals**: There is no evidence of significant serial correlation in the residuals of your time series model.
+   
    2.**Arch Test for Residuals**: There is no significant ARCH effect present in the residuals of your time series model at the conventional significance level.
+   
    3.**Nyblom Stability Test**: There is evidence of instability in the parameters of your time series model, particularly for "omega" and "beta1".
+   
    4.**Sign Bias Test**: There is no evidence of systematic sign bias in the residuals of your time series model.
+   
    5.**Adjusted Pearson Goodness-of-Fit Test**: There isn't significant evidence to suggest a lack of fit between the observed and expected frequencies in each group, based on the adjusted Pearson goodness-of-fit test.
    
-   
-News-impact curve
+Conditional SD (vs |returns|) 
 ```{r}
 plot(portfolio_df.garcht11, which = 3)
-plot(portfolio_df.garcht11, which = 10)
-plot(portfolio_df.garcht11, which = 11)
-plot(portfolio_df.garcht11, which = 12)
-
-
 ```
+
+There are periods where the volatility is relatively low and stable, suggesting less market turbulence.
+
+ACF of Standardized Residuals
+```{r}
+plot(portfolio_df.garcht11, which = 10)
+```
+
+ACF of Squared Standardized Residuals 
+
+```{r}
+plot(portfolio_df.garcht11, which = 11)
+```
+
+News-impact curve
+```{r}
+plot(portfolio_df.garcht11, which = 12)
+```
+
+Positive and negative shocks of equal magnitude have the same impact on volatility. The U-shaped curve indicates that both positive and negative shocks increase volatility, but the impact diminishes as the magnitude of the shock decreases.
 
 ## The EGARCH in mean-t model
 Let's first define the model specification:
@@ -392,21 +482,41 @@ The model summary:
 portfolio_df.egarchmt11
 ```
 Interpration
+
    1.**Ljung-Box Tests for Residuals and Squared Residuals**: There is no significant serial correlation present in the residuals or their squares based on these tests.
+   
    2.**Arch Test for Residuals**: There is not enough evidence to reject the null hypothesis of no conditional heteroskedasticity at any of the tested lag lengths. Therefore, based on these results, the data do not exhibit significant conditional heteroskedasticity.
+   
    3.**Nyblom Stability Test**: There is no evidence to suggest parameter instability in your model.
+   
    4.**Sign Bias Test**: there's no significant evidence to suggest a systematic bias in the predictions of your model. 
+   
    5.**Adjusted Pearson Goodness-of-Fit Test**: There's no strong evidence to suggest significant deviations between the observed data and the specified theoretical distribution for most groups.
+
+Conditional SD (vs |returns|) 
+```{r}
+plot(portfolio_df.garcht11, which = 3)
+```
+
+There are periods where the volatility is relatively low and stable, suggesting less market turbulence.
+
+ACF of Standardized Residuals
+```{r}
+plot(portfolio_df.garcht11, which = 10)
+```
+
+ACF of Squared Standardized Residuals 
+```{r}
+plot(portfolio_df.garcht11, which = 11)
+```
 
 News-impact curve
 ```{r}
-plot(portfolio_df.garcht11, which = 3)
-plot(portfolio_df.garcht11, which = 10)
-plot(portfolio_df.garcht11, which = 11)
 plot(portfolio_df.garcht11, which = 12)
 
-
 ```
+
+Positive and negative shocks of equal magnitude have the same impact on volatility. The U-shaped curve indicates that both positive and negative shocks increase volatility, but the impact diminishes as the magnitude of the shock decreases. 
 
 Now, let's compare information criteria for all models:
 ```{r}
@@ -416,6 +526,8 @@ compare_ICs_ugarchfit(c("portfolio_df.garch11",
                         "portfolio_df.garcht11", 
                         "portfolio_df.egarchmt11"))
 ```
+# Calculation of VaR
+
 ## VaR in the IN-SAMPLE period for the GARCH-t model
 
 Standardization of returns.
