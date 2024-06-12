@@ -69,7 +69,10 @@ colnames(BNB) <- c("Open", "High", "Low", "Close", "Volume", "Adjusted")
 print(Pound)
 ```
 
+# Data analysis and stylized facts
+
 ## Handling with NA values use na_locf
+
 ```{r data cleaning}
 Dow_Jones$Adjusted <- na_locf(Dow_Jones$Adjusted)
 Tmsc$Adjusted <- na_locf(Tmsc$Adjusted)
@@ -77,6 +80,7 @@ Pound$Adjusted <- na_locf(Pound$Adjusted)
 Silver$Adjusted <- na_locf(Silver$Adjusted)
 BNB$Adjusted <- na_locf(BNB$Adjusted)
 ```
+
 ## Log return of ecah asset
 
 ```{r log_return}
@@ -90,6 +94,7 @@ print(Dow_Jones$r)
 ```
 
 ## Portfolio construction
+
 ```{r Portfolio construction}
 # Calculate the combined returns of all assets
 combined_returns <- Dow_Jones$r + Tmsc$r + Pound$r + Silver$r + BNB$r
@@ -112,6 +117,7 @@ print(na.omit(portfolio_df))
 
 
 ## Log-returns plot
+
 ```{r log-return plot}
 plot(portfolio_df$r, 
      col = "red",
@@ -121,6 +127,7 @@ plot(portfolio_df$r,
 ```
 
 ## Plot of ACF for returns 
+
 ```{r ACF_return }
 acf(portfolio_df$r,lag.max = 36, na.action = na.pass,col="darkblue",lwd=7,main="ACF of Portfolio returns")
 
@@ -129,6 +136,7 @@ acf(portfolio_df$r, lag.max = 36, na.action = na.pass, ylim = c(-0.2, 0.2),
 ```
 
 ## Plot of ACF for **squared returns**.
+
 ```{r ACF_return^2}
 acf(portfolio_df$r^2,lag.max = 100,na.action = na.pass,col="darkblue",lwd=7,main="ACF of Portfolio squared returns")
 acf(portfolio_df$r^2,lag.max = 100,na.action = na.pass,
@@ -139,9 +147,11 @@ acf(portfolio_df$r^2,lag.max = 100,na.action = na.pass,
 Lag 1,2,3,4,6,8 seems significant.
 
 ## Normality test
+
 ```{r normality test}
 basicStats((portfolio_df$r))
 ```
+
 Skewness is negative and we also observe strong excess kurtosis.
 
 ```{r histogram for leptekutosis}
@@ -160,51 +170,23 @@ tibble(r = as.numeric(portfolio_df$r)) %>%
     caption = "source: own calculations"
   )
 ```
+
 As we can see, the distribution of the returns is **highly leptokurtic**.
 
 ```{r jargue-bera}
 jarque.bera.test(portfolio_df$r)
 ```
+
 The null hypothesis about normality strongly rejected!
 
 ## Testing for ARCH effects.
+
 ```{r test for arch}
 ArchTest(portfolio_df$r,lags = 5)
 ```
+
 There is very strong evidence to reject the null-hypothesis that there are no ARCH effects in the data.
 
-Standardization of returns.
-
-```{r}
-portfolio_df$stan <-(portfolio_df$r-mean(portfolio_df$r, na.rm=T))/ sd(portfolio_df$r, na.rm = T)
-
-tail(portfolio_df$stan)
-
-```
-Histogram of standart return
-```{r}
-hist(portfolio_df$stan, prob=T, breaks = 40)
-curve(dnorm(x, mean(portfolio_df$stan, na.rm= T),
-            sd=sd(portfolio_df$stan, na.rm = T)),
-      col="darkblue",lwd=2, add=TRUE)
-
-```
-Descriptive statistics of standardized returns .
-```{r}
-basicStats(portfolio_df$stan)
-
-```
-1% empirical quantile
-
-```{r}
-quantile(portfolio_df$stan,0.01, na.rm=T)
-
-```
-For comparison: 1% quantile of standard normal distribution
-```{r}
-qnorm(0.01,0,1)
-
-```
 
 # Build GARCH models
 
@@ -542,18 +524,22 @@ compare_ICs_ugarchfit(c("portfolio_df.garch11",
 ## VaR in the IN-SAMPLE period for the GARCH-t model
 
 Standardization of returns.
+
 ```{r}
 portfolio_df$rstd <- (portfolio_df$r - mean(portfolio_df$r, na.rm = T)) /
     sd(portfolio_df$r ,na.rm = T)
 tail(portfolio_df)
 ```
+
 1% empirical quantile
+
 ```{r}
 q01 <- quantile(portfolio_df$rstd, 0.01, na.rm = T)
 q01
 ```
 
 For comparison: 1% quantile of standard normal distribution
+
 ```{r}
 qnorm(0.01, 0, 1)
 ```
@@ -580,6 +566,8 @@ lines(portfolio_df$date,portfolio_df$var,col="green", type="l")
 
 ```
 
+Post-2020, the portfolio returns (red line) show continued volatility but at a relatively stable level compared to the spike in early 2020. The VaR line (green line) gradually recovers from its early 2020 dip but remains at a lower level compared to pre-2020, indicating a sustained higher risk. The plot provides a comprehensive view of how the portfolio returns and the associated risks have evolved over time, particularly highlighting the impact of the COVID-19 pandemic on market volatility and risk levels.
+
 In how many days losses were higher than the assumed value-at-risk?
 
 ```{r}
@@ -588,16 +576,24 @@ sum(portfolio_df$r < portfolio_df$var)/ length(portfolio_df$var)
 ```
 
 ## VaR in the OUT-OF-SAMPLE period fot the GARCH-t model
+
 Plot of conditional standard deviation and its on-day ahead prediction.
+
 ```{r sd plot}
 plot(ugarchforecast(portfolio_df.garcht11, na.ahead=1), which=3)
 
 ```
+
+The forecast indicates that volatility is expected to rise slightly in the near future. 
+
 Plot of conditional standard deviation forecasts in the long run.
+
 ```{r sd long}
 plot(ugarchforecast(portfolio_df.garcht11, n.ahead = 200), which=3)
 
 ```
+
+The unconditional sigma will decrease and stabilize over time.
 
 We can combine them with the in-sample estimation of conditional standard deviation
 
@@ -619,6 +615,7 @@ abline(h = unconditional_sigma, col = "red")
 ```
 
 Yet a better idea is to annualize all of these values. 
+
 ```{r}
 plot(
   c(as.numeric(portfolio_df.garcht11@fit$sigma * sqrt(252)),
@@ -627,6 +624,8 @@ plot(
   ylab = "sigma annualized")
 abline(h = unconditional_sigma * sqrt(252), col = "red")
 ```
+
+The large spike in the early part of the plot indicates a period of extreme market stress, which is common during significant financial events such as the onset of the COVID-19 pandemic.
 
 
 Now, the loop below calculates predictions of VaR for the whole **OUT-OF-SAMPLE** period
@@ -645,7 +644,9 @@ omega  <- rep(NA, times = finish - start + 1)
 alpha1 <- rep(NA, times = finish - start + 1)
 beta1  <- rep(NA, times = finish - start + 1)
 ```
+
 Calculation lasts for ~90-120 seconds:
+
 ```{r}
 time1 <- Sys.time()
 for (k in start:finish) {
@@ -677,7 +678,9 @@ Adding VaR values to the data.frame objects.
 portfolio_df2$Var <- VaR 
 head(portfolio_df2$Var)
 ```
+
 Plot of returns vs. VaR in the **OUT-OF-SAMPLE** period
+
 ```{r}
 plot(portfolio_df2$date, portfolio_df2$r, col = "red", lwd = 1, type = 'l',
      ylim = c(-0.20, 0.20))
@@ -685,21 +688,29 @@ abline(h = 0, lty = 2)
 lines(portfolio_df2$date, portfolio_df2$Var, type = 'l', col = "green")
 ```
 
+The actual returns are more volatile than the predicted VaR. The red line frequently stays above the green line, it suggests the portfolio is performing better than the risk estimate.
+
+
 In how many days losses were higher than the assumed VaR? 
+
 ```{r}
 sum(portfolio_df2$r < portfolio_df2$Var) / length(portfolio_df2$Var)
 ```
 
 ## VaR in the IN-SAMPLE period for the GARCH-mean-t model
+
 ```{r}
 str(portfolio_df.egarchmt11)
 head(portfolio_df.egarchmt11@fit$sigma)
 ```
+
 Calculating value-at-risk (VaR) the GARCH-mean-t model.
+
 ```{r}
 portfolio_df$varmt <- q01*portfolio_df.egarchmt11@fit$sigma
 tail(portfolio_df)
 ```
+
 Plot of returns vs value-at-risk.
 
 ```{r}
@@ -710,6 +721,8 @@ lines(portfolio_df$date,portfolio_df$varmt,col="green", type="l")
 
 ```
 
+Post-2020, the portfolio returns (red line) show continued volatility but at a relatively stable level compared to the spike in early 2020. The VaR line (green line) gradually recovers from its early 2020 dip but remains at a lower level compared to pre-2020, indicating a sustained higher risk. The plot provides a comprehensive view of how the portfolio returns and the associated risks have evolved over time, particularly highlighting the impact of the COVID-19 pandemic on market volatility and risk levels.
+
 In how many days losses were higher than the assumed value-at-risk?
 
 ```{r}
@@ -718,16 +731,22 @@ sum(portfolio_df$r < portfolio_df$varmt)/ length(portfolio_df$varmt)
 ```
 
 ## VaR in the OUT-OF-SAMPLE period for the GARCH-mean-t model
+
 Plot of conditional standard deviation and its on-day ahead prediction.
+
 ```{r}
 plot(ugarchforecast(portfolio_df.egarchmt11, na.ahead=1), which=3)
-
 ```
+
+The forecast indicates that volatility is expected to rise slightly in the near future. 
+
 Plot of conditional standard deviation forecasts in the long run.
+
 ```{r c sd}
 plot(ugarchforecast(portfolio_df.egarchmt11, n.ahead = 200), which=3)
-
 ```
+
+the unconditional sigma will decrease and stabilize over time.
 
 We can combine them with the in-sample estimation of conditional standard deviation
 
@@ -749,6 +768,7 @@ abline(h = unconditional_sigma, col = "red")
 ```
 
 Yet a better idea is to annualize all of these values. 
+
 ```{r annulize}
 plot(
   c(as.numeric(portfolio_df.egarchmt11@fit$sigma * sqrt(252)),
@@ -758,21 +778,26 @@ plot(
 abline(h = unconditional_sigma * sqrt(252), col = "red")
 ```
 
+The large spike in the early part of the plot indicates a period of extreme market stress, which is common during significant financial events such as the onset of the COVID-19 pandemic.
+
 Now, the loop below calculates predictions of VaR for the whole **OUT-OF-SAMPLE** period
+
 ```{r out sample-mean-t}
 portfolio_df1 <-
   portfolio_df1 %>%
   mutate(obs = row_number())
 start   <- portfolio_df1$obs[portfolio_df1$date == as.Date("2023-01-03")]
 finish  <- portfolio_df1$obs[portfolio_df1$date == as.Date("2024-05-30")]
-portfolio_df2 <- portfolio_df1[start:finish, ]
+portfolio_df3 <- portfolio_df1[start:finish, ]
 VaR <- rep(NA, times = finish - start + 1)
 mu     <- rep(NA, times = finish - start + 1)
 omega  <- rep(NA, times = finish - start + 1)
 alpha1 <- rep(NA, times = finish - start + 1)
 beta1  <- rep(NA, times = finish - start + 1)
 ```
+
 Calculation lasts for ~90-120 seconds:
+
 ```{r}
 time1 <- Sys.time()
 for (k in start:finish) {
@@ -802,20 +827,26 @@ time2 - time1
 Adding VaR values to the data.frame objects.
 
 ```{r}
-portfolio_df2$Var <- VaR
-head(portfolio_df2$Var)
+portfolio_df3$Var <- VaR
+head(portfolio_df3$Var)
 ```
+
 Plot of returns vs. VaR in the **OUT-OF-SAMPLE** period
+
 ```{r}
-plot(portfolio_df2$date, portfolio_df2$r, col = "red", lwd = 1, type = 'l',
+plot(portfolio_df3$date, portfolio_df2$r, col = "red", lwd = 1, type = 'l',
      ylim = c(-0.20, 0.20))
 abline(h = 0, lty = 2)
 lines(portfolio_df2$date, portfolio_df2$Var, type = 'l', col = "green")
 ```
 
+The actual returns are more volatile than the predicted VaR. The red line frequently stays above the green line, it suggests the portfolio is performing better than the risk estimate.
+
+
 In how many days losses were higher than the assumed VaR? 
+
 ```{r}
-sum(portfolio_df2$r < portfolio_df2$Var) / length(portfolio_df2$Var)
+sum(portfolio_df3$r < portfolio_df3$Var) / length(portfolio_df3$Var)
 ```
 
 # Conclusion
