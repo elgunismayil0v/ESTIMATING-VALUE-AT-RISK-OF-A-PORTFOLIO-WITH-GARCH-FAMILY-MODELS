@@ -135,7 +135,9 @@ acf(portfolio_df$r^2,lag.max = 100,na.action = na.pass,
     ylim= c(0, 0.5),col="darkblue",lwd=7,main="CF of Portfolio squared returns")
 
 ```
+
 Lag 1,2,3,4,6,8 seems significant.
+
 ## Normality test
 ```{r normality test}
 basicStats((portfolio_df$r))
@@ -255,6 +257,8 @@ ACF of Squared Standardized Residuals
 plot(portfolio_df.garch11, which=11)
 ```
 
+Plot of ACFs support our test results.
+
 ```{r news impact curve}
 plot(portfolio_df.garch11, which=12)
 ```
@@ -317,6 +321,8 @@ ACF of Squared Standardized Residuals
 plot(portfolio_df.egarch11, which = 11)
 
 ```
+
+Plot of ACFs support our test results.
 
 News-impact curve
 ```{r}
@@ -387,6 +393,7 @@ plot(portfolio_df.garchm11, which = 11)
 
 ```
 
+Plot of ACFs support our test results.
 
 News-impact curve
 ```{r}
@@ -451,6 +458,8 @@ ACF of Squared Standardized Residuals
 plot(portfolio_df.garcht11, which = 11)
 ```
 
+Plot of ACFs support our test results.
+
 News-impact curve
 ```{r}
 plot(portfolio_df.garcht11, which = 12)
@@ -509,6 +518,8 @@ ACF of Squared Standardized Residuals
 ```{r}
 plot(portfolio_df.garcht11, which = 11)
 ```
+
+Plot of ACFs support our test results.
 
 News-impact curve
 ```{r}
@@ -806,3 +817,7 @@ In how many days losses were higher than the assumed VaR?
 ```{r}
 sum(portfolio_df2$r < portfolio_df2$Var) / length(portfolio_df2$Var)
 ```
+
+# Conclusion
+
+The performance of both models are similar.
