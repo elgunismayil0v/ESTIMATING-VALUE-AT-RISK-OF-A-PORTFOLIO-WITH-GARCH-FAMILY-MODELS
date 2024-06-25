@@ -349,9 +349,9 @@ Interpration
    
    2.**Arch Test for Residuals**: These results suggest that there is no significant evidence of autoregressive conditional heteroskedasticity (ARCH effects) in the residuals of the model at the 5% significance level. 
    
-   3.**Nyblom Stability Test**: he Nyblom stability test suggests that the model's parameters are stable.
+   3.**Nyblom Stability Test**: The Nyblom stability test suggests that the model's parameters are stable.
    
-   4.**Sign Bias Test**: the Sign Bias Test suggests that there's no significant systematic bias in the signs of the residuals.
+   4.**Sign Bias Test**: The Sign Bias Test suggests that there's no significant systematic bias in the signs of the residuals.
    
    5.**Adjusted Pearson Goodness-of-Fit Test**: Reject the null hypothesis and conclude that there is a significant difference between the observed and expected frequencies in each group.
 
@@ -478,9 +478,9 @@ Interpration
    
    2.**Arch Test for Residuals**: There is not enough evidence to reject the null hypothesis of no conditional heteroskedasticity at any of the tested lag lengths. Therefore, based on these results, the data do not exhibit significant conditional heteroskedasticity.
    
-   3.**Nyblom Stability Test**: There is no evidence to suggest parameter instability in your model.
+   3.**Nyblom Stability Test**: There is no evidence to suggest parameter instability in model.
    
-   4.**Sign Bias Test**: there's no significant evidence to suggest a systematic bias in the predictions of your model. 
+   4.**Sign Bias Test**: There's no significant evidence to suggest a systematic bias in the predictions of model. 
    
    5.**Adjusted Pearson Goodness-of-Fit Test**: There's no strong evidence to suggest significant deviations between the observed data and the specified theoretical distribution for most groups.
 
