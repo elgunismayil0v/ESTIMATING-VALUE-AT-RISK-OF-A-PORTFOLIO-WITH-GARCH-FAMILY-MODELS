@@ -16,4 +16,5 @@ The project requires financial time series data, specifically historical prices 
    2. **Price**: The closing prices of the assets.
      
 4.**Results**
+
 The estimated VaR provides an insight into the potential maximum loss of the portfolio over the specified period at the given confidence level. The results can be visualized and interpreted to enhance risk management strategies.
