@@ -10,16 +10,17 @@ output:
     toc_float: true
     theme: lumen
     css: styles.css
+    code_folding: hide
 editor_options:
   chunk_output_type: console
 ---
 
 
-
-
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = T, error = FALSE, message = FALSE,
+                      warning = FALSE, results = "hide")
 ```
+
 # Importing necessary libraries
 ```{r libraries}
 library(tidyverse)
@@ -33,13 +34,16 @@ library(FinTS)
 library(car)
 library(fBasics)
 ```
+
 Lets load additional function defined which will be used to to easily compare information criteria for ARCH and GARCH models.
+
 
 ```{r}
 source("/Users/elgun/Desktop/ESTIMATING-VALUE-AT-RISK-OF-A-PORTFOLIO-WITH-GARCH-FAMILY-MODELS-Time-Series-project/functions/compare_ICs_ugarchfit.R")
 ```
 
 # Import the data
+
 ```{r}
 # Fetch data for Dow Jones
 Dow_Jones <- getSymbols("^DJI", src = "yahoo", from = "2019-01-01", to = "2024-06-01", auto.assign = FALSE)
